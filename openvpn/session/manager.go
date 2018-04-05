@@ -13,7 +13,7 @@ func NewManager(clientConfigGenerator openvpn.ClientConfigGenerator, idGenerator
 		idGenerator:          idGenerator,
 		generateClientConfig: clientConfigGenerator,
 		sessionMap:           make(map[session.SessionID]session.Session),
-		creationLock:         sync.Mutex{},
+		mapLock:              &sync.Mutex{},
 	}
 }
 
@@ -21,12 +21,12 @@ type manager struct {
 	idGenerator          session.Generator
 	generateClientConfig openvpn.ClientConfigGenerator
 	sessionMap           map[session.SessionID]session.Session
-	creationLock         sync.Mutex
+	mapLock              *sync.Mutex
 }
 
 func (manager *manager) Create(peerID identity.Identity) (sessionInstance session.Session, err error) {
-	manager.creationLock.Lock()
-	defer manager.creationLock.Unlock()
+	manager.mapLock.Lock()
+	defer manager.mapLock.Unlock()
 	sessionInstance.ID = manager.idGenerator.Generate()
 	sessionInstance.ConsumerID = peerID
 	sessionInstance.Config, err = openvpn.ConfigToString(*manager.generateClientConfig().Config)
@@ -39,6 +39,8 @@ func (manager *manager) Create(peerID identity.Identity) (sessionInstance sessio
 }
 
 func (manager *manager) FindSession(id session.SessionID) (session.Session, bool) {
+	manager.mapLock.Lock()
+	defer manager.mapLock.Unlock()
 	sessionInstance, found := manager.sessionMap[id]
 	return sessionInstance, found
 }

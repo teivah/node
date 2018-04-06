@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+go run e2e/run_tests.go

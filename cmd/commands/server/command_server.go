@@ -36,7 +36,7 @@ type Command struct {
 
 	vpnServer    *openvpn.Server
 	checkOpenvpn func() error
-	protocol	string
+	protocol     string
 }
 
 // Start starts server - does not block
@@ -102,8 +102,14 @@ func (cmd *Command) Start() (err error) {
 		return err
 	}
 
-	if err := cmd.mysteriumClient.RegisterProposal(proposal, signer); err != nil {
-		return err
+	for {
+		err := cmd.mysteriumClient.RegisterProposal(proposal, signer)
+		if err != nil {
+			log.Errorf("Failed to register proposal: %v, retrying after 1 min.", err)
+			time.Sleep(1 * time.Minute)
+		} else {
+			break
+		}
 	}
 
 	go PingProposalLoop(proposal, cmd.mysteriumClient, signer, stopPinger)
@@ -131,7 +137,7 @@ func (cmd *Command) Kill() error {
 }
 
 // Ping proposal until stopped, then unregister proposal
-func PingProposalLoop(proposal dto_discovery.ServiceProposal, mysteriumClient  server.Client, signer identity.Signer, stopPinger <- chan int) {
+func PingProposalLoop(proposal dto_discovery.ServiceProposal, mysteriumClient server.Client, signer identity.Signer, stopPinger <-chan int) {
 	for {
 		select {
 		case <-time.After(1 * time.Minute):

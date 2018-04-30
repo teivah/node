@@ -4,12 +4,20 @@ import (
 	"errors"
 	"github.com/mysterium/node/openvpn/management"
 	"github.com/stretchr/testify/assert"
+	"os/exec"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 )
 
 func TestClientReceivesEventsFromOpenvpnManagement(t *testing.T) {
+	openvpnEmulator := filepath.Join("testdataoutput", "openvpn_emulator")
+	err := buildMeExec(filepath.Join("testdata", "openvpn_emulator.go"), openvpnEmulator)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	config := NewClientConfig("1.2.3.4", "", "", "")
 
 	middleware := newCollectingMiddleware()
@@ -22,7 +30,7 @@ func TestClientReceivesEventsFromOpenvpnManagement(t *testing.T) {
 		stopCalled = true
 	}
 
-	client := NewClient("testdata/openvpn-client-process.sh", config, "testdataoutput", middleware)
+	client := NewClient(openvpnEmulator, config, "testdataoutput", middleware)
 
 	assert.NoError(t, client.Start())
 	time.Sleep(time.Second)
@@ -117,4 +125,8 @@ func (md *collectingMiddleware) Stop(connection management.Connection) error {
 func (md *collectingMiddleware) ConsumeLine(line string) (bool, error) {
 	md.lines = append(md.lines, line)
 	return true, nil
+}
+
+func buildMeExec(path string, outputBin string) error {
+	return exec.Command("go", "build", "-o", outputBin, path).Run()
 }
